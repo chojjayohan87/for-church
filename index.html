@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>교회 통합 관리 시스템</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN for data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Lucide Icons CDN for modern icons - FIXED -->
+    <script src="https://unpkg.com/lucide@0.395.0/dist/umd/lucide.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* Custom styles */
+        body {
+            font-family: 'Noto Sans KR', 'Inter', sans-serif;
+            background-color: #f0f2f5; /* Light grey background */
+        }
+        .main-content {
+            transition: margin-left 0.3s ease;
+        }
+        /* Sidebar styles for responsiveness */
+        @media (min-width: 1024px) {
+            .main-content {
+                margin-left: 256px; /* 16rem */
+            }
+        }
+        /* Custom scrollbar for better aesthetics */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        /* Page transition effect */
+        .page {
+            display: none;
+            animation: fadeIn 0.5s;
+        }
+        .page.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+            animation: fadeIn 0.3s;
+        }
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+            animation: slideInUp 0.4s;
+        }
+        @keyframes slideInUp {
+            from { transform: translateY(20px); opacity: 0;}
+            to { transform: translateY(0px); opacity: 1;}
+        }
+        /* Styles for printing receipts */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #receipts-page, #receipts-page * {
+                visibility: visible;
+            }
+             #receipts-page {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+            }
+            button {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <!-- Sidebar Navigation -->
+    <aside id="sidebar" class="bg-white text-gray-800 w-64 fixed h-full shadow-lg transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out z-40">
+        <div class="p-6 border-b border-gray-200">
+            <h1 class="text-2xl font-bold text-indigo-600 flex items-center">
+                <i data-lucide="church" class="mr-2"></i>
+                <span>그냥 교회</span>
+            </h1>
+        </div>
+        <nav class="mt-4">
+            <a href="#dashboard" class="nav-link flex items-center py-3 px-6 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors duration-200">
+                <i data-lucide="layout-dashboard" class="mr-3"></i> 대시보드
+            </a>
+            <a href="#finance" class="nav-link flex items-center py-3 px-6 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors duration-200">
+                <i data-lucide="piggy-bank" class="mr-3"></i> 재정 관리
+            </a>
+            <a href="#attendance" class="nav-link flex items-center py-3 px-6 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors duration-200">
+                <i data-lucide="clipboard-user" class="mr-3"></i> 교인 출결
+            </a>
+            <a href="#parking" class="nav-link flex items-center py-3 px-6 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors duration-200">
+                <i data-lucide="car-taxi-front" class="mr-3"></i> 주차 관리
+            </a>
+            <a href="#announcements" class="nav-link flex items-center py-3 px-6 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors duration-200">
+                <i data-lucide="megaphone" class="mr-3"></i> 교회 소식
+            </a>
+            <a href="#receipts" class="nav-link flex items-center py-3 px-6 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors duration-200">
+                <i data-lucide="receipt" class="mr-3"></i> 기부금 영수증
+            </a>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Header -->
+        <header class="bg-white shadow-sm p-4 flex justify-between items-center sticky top-0 z-30">
+            <button id="menu-toggle" class="lg:hidden text-gray-600">
+                <i data-lucide="menu"></i>
+            </button>
+            <h2 id="page-title" class="text-xl font-semibold text-gray-700">대시보드</h2>
+            <div class="flex items-center">
+                <i data-lucide="user-circle" class="text-gray-600 w-8 h-8"></i>
+            </div>
+        </header>
+
+        <main class="p-4 md:p-6 lg:p-8">
+            <!-- Dashboard Page -->
+            <section id="dashboard-page" class="page">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div class="bg-white p-6 rounded-lg shadow-md flex items-center">
+                        <div class="bg-blue-100 p-3 rounded-full mr-4"><i data-lucide="hand-coins" class="text-blue-500"></i></div>
+                        <div>
+                            <p class="text-gray-500 text-sm">이달의 헌금</p>
+                            <p class="text-2xl font-bold">₩ 5,120,000</p>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md flex items-center">
+                        <div class="bg-green-100 p-3 rounded-full mr-4"><i data-lucide="users" class="text-green-500"></i></div>
+                        <div>
+                            <p class="text-gray-500 text-sm">금주 출석 인원</p>
+                            <p class="text-2xl font-bold">178 명</p>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md flex items-center">
+                        <div class="bg-yellow-100 p-3 rounded-full mr-4"><i data-lucide="parking-circle" class="text-yellow-500"></i></div>
+                        <div>
+                            <p class="text-gray-500 text-sm">등록 차량</p>
+                            <p class="text-2xl font-bold">82 대</p>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md flex items-center">
+                        <div class="bg-red-100 p-3 rounded-full mr-4"><i data-lucide="bell-ring" class="text-red-500"></i></div>
+                        <div>
+                            <p class="text-gray-500 text-sm">새로운 소식</p>
+                            <p class="text-2xl font-bold">3 건</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-md">
+                        <h3 class="text-lg font-semibold mb-4">월별 재정 현황</h3>
+                        <div class="relative h-96">
+                            <canvas id="financeChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <h3 class="text-lg font-semibold mb-4">최신 교회 소식</h3>
+                        <ul class="space-y-4">
+                            <li class="border-b pb-2">
+                                <p class="font-medium text-gray-800">전교인 여름 수련회 안내</p>
+                                <p class="text-sm text-gray-500">8월 15일 ~ 17일, 장소: 행복 수양관</p>
+                            </li>
+                            <li class="border-b pb-2">
+                                <p class="font-medium text-gray-800">새가족 환영회</p>
+                                <p class="text-sm text-gray-500">이번 주일 2부 예배 후, 본당 1층</p>
+                            </li>
+                            <li>
+                                <p class="font-medium text-gray-800">성경 통독 모임 시작</p>
+                                <p class="text-sm text-gray-500">매주 수요일 저녁 7시, 교육관</p>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Finance Page -->
+            <section id="finance-page" class="page">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
+                        <h3 class="text-xl font-semibold">재정 거래 내역</h3>
+                        <button id="add-finance-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition w-full sm:w-auto">새 거래 추가</button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr class="border-b bg-gray-50">
+                                    <th class="p-4">날짜</th>
+                                    <th class="p-4">유형</th>
+                                    <th class="p-4">항목</th>
+                                    <th class="p-4">금액</th>
+                                    <th class="p-4">비고</th>
+                                </tr>
+                            </thead>
+                            <tbody id="finance-table-body">
+                                <tr class="border-b">
+                                    <td class="p-4">2025-09-28</td>
+                                    <td class="p-4"><span class="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs">수입</span></td>
+                                    <td class="p-4">십일조</td>
+                                    <td class="p-4 text-green-600 font-medium">+ ₩ 2,500,000</td>
+                                    <td class="p-4">정기 헌금</td>
+                                </tr>
+                                <tr class="border-b">
+                                    <td class="p-4">2025-09-27</td>
+                                    <td class="p-4"><span class="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs">지출</span></td>
+                                    <td class="p-4">수도광열비</td>
+                                    <td class="p-4 text-red-600 font-medium">- ₩ 350,000</td>
+                                    <td class="p-4">9월 전기세</td>
+                                </tr>
+                                <tr class="border-b">
+                                    <td class="p-4">2025-09-21</td>
+                                    <td class="p-4"><span class="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs">수입</span></td>
+                                    <td class="p-4">감사헌금</td>
+                                    <td class="p-4 text-green-600 font-medium">+ ₩ 800,000</td>
+                                    <td class="p-4"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Attendance Page -->
+            <section id="attendance-page" class="page">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
+                        <h3 class="text-xl font-semibold">주일 예배 출석 (2025-09-28)</h3>
+                        <input type="text" id="attendance-search" placeholder="교인 이름 검색..." class="border rounded-lg px-3 py-2 w-full sm:w-1/3">
+                    </div>
+                     <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr class="border-b bg-gray-50">
+                                    <th class="p-4">이름</th>
+                                    <th class="p-4">소속</th>
+                                    <th class="p-4">직분</th>
+                                    <th class="p-4">출석 여부</th>
+                                </tr>
+                            </thead>
+                            <tbody id="attendance-table-body">
+                                <tr class="border-b attendance-row">
+                                    <td class="p-4 member-name">김민준</td>
+                                    <td class="p-4">청년부</td>
+                                    <td class="p-4">성도</td>
+                                    <td class="p-4"><label class="inline-flex items-center cursor-pointer"><input type="checkbox" class="form-checkbox h-5 w-5 text-indigo-600 rounded" checked> <span class="ml-2">출석</span></label></td>
+                                </tr>
+                                <tr class="border-b attendance-row">
+                                    <td class="p-4 member-name">이서연</td>
+                                    <td class="p-4">여선교회</td>
+                                    <td class="p-4">집사</td>
+                                    <td class="p-4"><label class="inline-flex items-center cursor-pointer"><input type="checkbox" class="form-checkbox h-5 w-5 text-indigo-600 rounded"> <span class="ml-2">결석</span></label></td>
+                                </tr>
+                                <tr class="border-b attendance-row">
+                                    <td class="p-4 member-name">박도윤</td>
+                                    <td class="p-4">남선교회</td>
+                                    <td class="p-4">장로</td>
+                                    <td class="p-4"><label class="inline-flex items-center cursor-pointer"><input type="checkbox" class="form-checkbox h-5 w-5 text-indigo-600 rounded" checked> <span class="ml-2">출석</span></label></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Parking Page -->
+            <section id="parking-page" class="page">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
+                        <h3 class="text-xl font-semibold">등록 차량 목록</h3>
+                        <button id="add-parking-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition w-full sm:w-auto">새 차량 등록</button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr class="border-b bg-gray-50">
+                                    <th class="p-4">차량 번호</th>
+                                    <th class="p-4">차주</th>
+                                    <th class="p-4">소속</th>
+                                    <th class="p-4">연락처</th>
+                                    <th class="p-4">등록일</th>
+                                </tr>
+                            </thead>
+                            <tbody id="parking-table-body">
+                                <tr class="border-b">
+                                    <td class="p-4 font-mono">12가 3456</td>
+                                    <td class="p-4">김민준</td>
+                                    <td class="p-4">청년부</td>
+                                    <td class="p-4">010-1234-5678</td>
+                                    <td class="p-4">2025-01-15</td>
+                                </tr>
+                                <tr class="border-b">
+                                    <td class="p-4 font-mono">34나 7890</td>
+                                    <td class="p-4">이서연</td>
+                                    <td class="p-4">여선교회</td>
+                                    <td class="p-4">010-5678-1234</td>
+                                    <td class="p-4">2024-11-20</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Announcements Page -->
+            <section id="announcements-page" class="page">
+                 <div class="bg-white p-6 rounded-lg shadow-md">
+                     <div class="flex justify-between items-center mb-6">
+                         <h3 class="text-xl font-semibold">교회 소식 및 공지사항</h3>
+                         <button id="add-announcement-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition flex items-center">
+                             <i data-lucide="plus" class="mr-2 w-4 h-4"></i> 새 소식 작성
+                         </button>
+                     </div>
+                     <div id="announcements-list" class="space-y-4">
+                         <div class="border p-4 rounded-lg bg-gray-50">
+                             <h4 class="font-bold text-lg">전교인 여름 수련회 안내</h4>
+                             <p class="text-sm text-gray-500 mb-2">작성일: 2025-07-28</p>
+                             <p class="text-gray-700">오는 8월 15일부터 17일까지 2박 3일간 행복 수양관에서 전교인 여름 수련회가 열립니다. 많은 참여와 기도 부탁드립니다.</p>
+                         </div>
+                          <div class="border p-4 rounded-lg bg-gray-50">
+                             <h4 class="font-bold text-lg">새가족 환영회</h4>
+                             <p class="text-sm text-gray-500 mb-2">작성일: 2025-09-25</p>
+                             <p class="text-gray-700">이번 주일 2부 예배 후, 본당 1층 새가족실에서 환영회가 있습니다. 새로 등록하신 성도님들을 환영하고 축복하는 자리에 함께해주세요.</p>
+                         </div>
+                     </div>
+                 </div>
+            </section>
+
+            <!-- Receipts Page -->
+            <section id="receipts-page" class="page">
+                <div class="bg-white p-6 rounded-lg shadow-md max-w-4xl mx-auto">
+                    <h3 class="text-2xl font-bold text-center mb-2">기부금 영수증</h3>
+                    <p class="text-center text-gray-500 mb-6">소득세법 시행규칙 별지 제 45호의 2서식</p>
+                    <div class="border-2 border-black p-4">
+                        <div class="grid grid-cols-2 gap-4 border-b-2 border-black pb-2">
+                            <div>
+                                <h4 class="font-bold">기부자</h4>
+                                <p>성명: 홍길동</p>
+                                <p>주민등록번호: 900101-1******</p>
+                                <p>주소: 서울특별시 행복구 사랑로 1004</p>
+                            </div>
+                            <div>
+                                <h4 class="font-bold">기부금 단체</h4>
+                                <p>단체명: 그냥 교회</p>
+                                <p>고유번호: 123-82-00000</p>
+                                <p>소재지: 서울특별시 믿음구 소망로 123</p>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <h4 class="font-bold text-lg mb-2">기부금 내역</h4>
+                            <table class="w-full border-collapse border border-gray-400">
+                                <thead>
+                                    <tr class="bg-gray-100">
+                                        <th class="border border-gray-300 p-2">연월일</th>
+                                        <th class="border border-gray-300 p-2">유형</th>
+                                        <th class="border border-gray-300 p-2">내용</th>
+                                        <th class="border border-gray-300 p-2">금액</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td class="border border-gray-300 p-2 text-center">2025-01-15</td>
+                                        <td class="border border-gray-300 p-2 text-center">지정기부금</td>
+                                        <td class="border border-gray-300 p-2 text-center">십일조</td>
+                                        <td class="border border-gray-300 p-2 text-right">₩ 200,000</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="border border-gray-300 p-2 text-center" colspan="3"><strong>합계</strong></td>
+                                        <td class="border border-gray-300 p-2 text-right"><strong>₩ 200,000</strong></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <p class="mt-6">위와 같이 기부금을 영수하였음을 증명합니다.</p>
+                            <p class="text-center mt-4 mb-8 text-lg">2025년 09월 30일</p>
+                            <p class="text-center text-xl font-bold">그냥 교회 (직인)</p>
+                        </div>
+                    </div>
+                    <div class="text-center mt-6">
+                        <button onclick="window.print()" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition flex items-center mx-auto">
+                            <i data-lucide="printer" class="mr-2 w-4 h-4"></i> 인쇄하기
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <!-- Finance Modal -->
+    <div id="finance-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="flex justify-between items-center pb-3">
+                <h3 class="text-lg leading-6 font-medium text-gray-900">새 거래 추가</h3>
+                <button class="close-modal-btn text-gray-400 hover:text-gray-500">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="mt-2">
+                <form id="finance-form" class="space-y-4">
+                    <div>
+                        <label for="finance-date" class="block text-sm font-medium text-gray-700">날짜</label>
+                        <input type="date" id="finance-date" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" required>
+                    </div>
+                    <div>
+                        <label for="finance-type" class="block text-sm font-medium text-gray-700">유형</label>
+                        <select id="finance-type" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                            <option>수입</option>
+                            <option>지출</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="finance-item" class="block text-sm font-medium text-gray-700">항목</label>
+                        <input type="text" id="finance-item" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="예: 십일조, 수도광열비" required>
+                    </div>
+                    <div>
+                        <label for="finance-amount" class="block text-sm font-medium text-gray-700">금액</label>
+                        <input type="number" id="finance-amount" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="₩" required>
+                    </div>
+                     <div>
+                        <label for="finance-notes" class="block text-sm font-medium text-gray-700">비고</label>
+                        <textarea id="finance-notes" rows="2" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
+                <button type="submit" form="finance-form" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none sm:col-start-2 sm:text-sm">저장</button>
+                <button type="button" class="close-modal-btn mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:col-start-1 sm:text-sm">취소</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Parking Modal -->
+    <div id="parking-modal" class="modal-overlay">
+        <div class="modal-content">
+             <div class="flex justify-between items-center pb-3">
+                <h3 class="text-lg leading-6 font-medium text-gray-900">새 차량 등록</h3>
+                <button class="close-modal-btn text-gray-400 hover:text-gray-500">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="mt-2">
+                <form id="parking-form" class="space-y-4">
+                    <div>
+                        <label for="parking-number" class="block text-sm font-medium text-gray-700">차량 번호</label>
+                        <input type="text" id="parking-number" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="예: 12가 3456" required>
+                    </div>
+                    <div>
+                        <label for="parking-owner" class="block text-sm font-medium text-gray-700">차주</label>
+                        <input type="text" id="parking-owner" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="성도 이름" required>
+                    </div>
+                     <div>
+                        <label for="parking-contact" class="block text-sm font-medium text-gray-700">연락처</label>
+                        <input type="tel" id="parking-contact" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="010-1234-5678" required>
+                    </div>
+                </form>
+            </div>
+            <div class="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
+                <button type="submit" form="parking-form" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none sm:col-start-2 sm:text-sm">등록</button>
+                <button type="button" class="close-modal-btn mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:col-start-1 sm:text-sm">취소</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Announcement Modal -->
+    <div id="announcement-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="flex justify-between items-center pb-3">
+                <h3 class="text-lg leading-6 font-medium text-gray-900">새 소식 작성</h3>
+                <button class="close-modal-btn text-gray-400 hover:text-gray-500">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="mt-2">
+                <form id="announcement-form" class="space-y-4">
+                    <div>
+                        <label for="announcement-title" class="block text-sm font-medium text-gray-700">제목</label>
+                        <input type="text" id="announcement-title" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" required>
+                    </div>
+                    <div>
+                        <label for="announcement-content" class="block text-sm font-medium text-gray-700">내용</label>
+                        <textarea id="announcement-content" rows="4" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" required></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
+                <button type="submit" form="announcement-form" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none sm:col-start-2 sm:text-sm">게시</button>
+                <button type="button" class="close-modal-btn mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:col-start-1 sm:text-sm">취소</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize Lucide Icons
+            lucide.createIcons();
+
+            const navLinks = document.querySelectorAll('.nav-link');
+            const pages = document.querySelectorAll('.page');
+            const pageTitle = document.getElementById('page-title');
+            const menuToggle = document.getElementById('menu-toggle');
+            const sidebar = document.getElementById('sidebar');
+
+            // --- Navigation Logic ---
+            function showPage(hash) {
+                const targetId = (hash ? hash.substring(1) : 'dashboard') + '-page';
+                
+                pages.forEach(page => {
+                    page.classList.toggle('active', page.id === targetId);
+                });
+
+                navLinks.forEach(link => {
+                    const isActive = link.getAttribute('href') === hash;
+                    link.classList.toggle('bg-indigo-50', isActive);
+                    link.classList.toggle('text-indigo-600', isActive);
+                    if (isActive) {
+                        const linkText = link.textContent.trim();
+                        pageTitle.textContent = linkText;
+                        document.title = `${linkText} - 교회 통합 관리 시스템`;
+                    }
+                });
+            }
+
+            navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const hash = e.currentTarget.getAttribute('href');
+                    if (location.hash !== hash) {
+                       history.pushState(null, null, location.pathname + hash);
+                    }
+                    showPage(hash);
+                    if(window.innerWidth < 1024) {
+                         sidebar.classList.add('-translate-x-full');
+                    }
+                });
+            });
+
+            window.addEventListener('popstate', () => {
+                const hash = window.location.hash || '#dashboard';
+                showPage(hash);
+            });
+
+            const initialHash = window.location.hash || '#dashboard';
+            showPage(initialHash);
+
+            menuToggle.addEventListener('click', () => {
+                sidebar.classList.toggle('-translate-x-full');
+            });
+            
+            // --- Chart.js Logic ---
+            const ctx = document.getElementById('financeChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['4월', '5월', '6월', '7월', '8월', '9월'],
+                    datasets: [{
+                        label: '수입 (만원)',
+                        data: [450, 480, 520, 470, 510, 512],
+                        backgroundColor: 'rgba(79, 70, 229, 0.7)',
+                        borderColor: 'rgba(79, 70, 229, 1)',
+                        borderWidth: 1,
+                        borderRadius: 5
+                    },
+                    {
+                        label: '지출 (만원)',
+                        data: [300, 320, 310, 350, 340, 360],
+                        backgroundColor: 'rgba(220, 38, 38, 0.6)',
+                        borderColor: 'rgba(220, 38, 38, 1)',
+                        borderWidth: 1,
+                        borderRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '만원';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                             callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += new Intl.NumberFormat('ko-KR').format(context.parsed.y) + '만원';
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // --- Modal Logic ---
+            function setupModal(buttonId, modalId) {
+                const openBtn = document.getElementById(buttonId);
+                const modal = document.getElementById(modalId);
+                if (!openBtn || !modal) return;
+                
+                const closeBtns = modal.querySelectorAll('.close-modal-btn');
+                
+                openBtn.addEventListener('click', () => modal.style.display = 'flex');
+                closeBtns.forEach(btn => btn.addEventListener('click', () => modal.style.display = 'none'));
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        modal.style.display = 'none';
+                    }
+                });
+            }
+
+            setupModal('add-finance-btn', 'finance-modal');
+            setupModal('add-parking-btn', 'parking-modal');
+            setupModal('add-announcement-btn', 'announcement-modal');
+
+            // --- Form Submission Logic ---
+            document.getElementById('finance-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const type = e.target.elements['finance-type'].value;
+                const isIncome = type === '수입';
+                const newRow = `
+                    <tr class="border-b">
+                        <td class="p-4">${e.target.elements['finance-date'].value}</td>
+                        <td class="p-4"><span class="bg-${isIncome ? 'green' : 'red'}-100 text-${isIncome ? 'green' : 'red'}-700 px-2 py-1 rounded-full text-xs">${type}</span></td>
+                        <td class="p-4">${e.target.elements['finance-item'].value}</td>
+                        <td class="p-4 text-${isIncome ? 'green' : 'red'}-600 font-medium">${isIncome ? '+' : '-'} ₩ ${parseInt(e.target.elements['finance-amount'].value).toLocaleString()}</td>
+                        <td class="p-4">${e.target.elements['finance-notes'].value}</td>
+                    </tr>
+                `;
+                document.getElementById('finance-table-body').insertAdjacentHTML('afterbegin', newRow);
+                e.target.reset();
+                document.getElementById('finance-modal').style.display = 'none';
+            });
+            
+            document.getElementById('parking-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const today = new Date().toISOString().slice(0, 10);
+                const newRow = `
+                    <tr class="border-b">
+                        <td class="p-4 font-mono">${e.target.elements['parking-number'].value}</td>
+                        <td class="p-4">${e.target.elements['parking-owner'].value}</td>
+                        <td class="p-4">미지정</td>
+                        <td class="p-4">${e.target.elements['parking-contact'].value}</td>
+                        <td class="p-4">${today}</td>
+                    </tr>
+                `;
+                document.getElementById('parking-table-body').insertAdjacentHTML('afterbegin', newRow);
+                e.target.reset();
+                document.getElementById('parking-modal').style.display = 'none';
+            });
+            
+            document.getElementById('announcement-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                 const today = new Date().toISOString().slice(0, 10);
+                const newAnnouncement = `
+                    <div class="border p-4 rounded-lg bg-gray-50">
+                         <h4 class="font-bold text-lg">${e.target.elements['announcement-title'].value}</h4>
+                         <p class="text-sm text-gray-500 mb-2">작성일: ${today}</p>
+                         <p class="text-gray-700">${e.target.elements['announcement-content'].value.replace(/\n/g, '<br>')}</p>
+                     </div>
+                `;
+                document.getElementById('announcements-list').insertAdjacentHTML('afterbegin', newAnnouncement);
+                e.target.reset();
+                document.getElementById('announcement-modal').style.display = 'none';
+            });
+
+            // --- Attendance Page Logic ---
+            document.getElementById('attendance-search').addEventListener('input', function(e) {
+                const searchTerm = e.target.value.toLowerCase();
+                document.querySelectorAll('.attendance-row').forEach(row => {
+                    const name = row.querySelector('.member-name').textContent.toLowerCase();
+                    row.style.display = name.includes(searchTerm) ? '' : 'none';
+                });
+            });
+
+            document.getElementById('attendance-table-body').addEventListener('change', function(e) {
+                 if (e.target.type === 'checkbox') {
+                    const label = e.target.nextElementSibling;
+                    label.textContent = e.target.checked ? '출석' : '결석';
+                 }
+            });
+        });
+    </script>
+</body>
+</html>
